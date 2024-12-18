@@ -1,14 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+import pandas as pd
 import torch
 from scipy.stats import norm
+import seaborn as sns
 
 # Helper functions for the project
 
 # Plot activation functions
 def plot_activation_functions(functions, title, x_range = (-5, 5), num_points = 500):
     """
-    Plots one or multiple activation functions on the same graph.
+    Plots one or multiple activation functions on the same plot.
     """
     # If a single function is passed, convert it to a list with one tuple
     if not isinstance(functions, list):
@@ -37,6 +40,9 @@ def plot_activation_functions(functions, title, x_range = (-5, 5), num_points = 
 
 # Plot normal distrubition
 def plot_normal_distribution(x):
+    """
+    Plots the normal distribution with areas up to x and after x in different colors.
+    """
     # Generate x values for the plot (from -4 to 4 standard deviations)
     x_values = np.linspace(-4, 4, 1000)
     
@@ -68,3 +74,66 @@ def plot_normal_distribution(x):
     
     # Display the plot
     plt.show()
+
+# Show image split into patches
+def show_image_split_into_patches(image, patch_size):
+    """
+    Shows an image split into patches.
+    """
+    # Convert image to numpy array
+    image_array = np.array(image)
+
+    # Create patches list
+    patch_size = patch_size
+    patches = []
+
+    # Loop to extract 16x16 patches
+    for i in range(0, image_array.shape[0], patch_size):
+        for j in range(0, image_array.shape[1], patch_size):
+            patch = image_array[i: i  + patch_size, j : j + patch_size]
+            patches.append(patch)
+
+    # Visualize the image patches using matplotlib
+    fig, axes = plt.subplots(14, 14, figsize = (10, 10))
+
+    # Flatten the axes array for easy indexing  
+    axes = axes.flatten()
+
+    for i, patch in enumerate(patches):
+        axes[i].imshow(patch)
+        axes[i].axis('off')  # Hide axes
+
+    plt.tight_layout()
+    plt.show()
+
+# Plot class distribution for a specific dataset
+def plot_class_distribution(split_dist, split_name, class_names):
+    """ 
+    Plots the class distribution for a classification dataset.
+    """
+    # Create a DataFrame from the class distribution
+    data = {
+        "Class": class_names,
+        "Count": [split_dist.get(i, 0) for i in range(len(class_names))]
+    }
+
+    df = pd.DataFrame(data)
+
+    # Create a barplot using seaborn
+    plt.figure(figsize = (12, 6))
+    sns.barplot(x = "Class", y = "Count", data = df)
+
+    # Rotate x-axis ticks for better readability and adjust font size
+    plt.xticks(rotation = 90, fontsize = 10)  # Rotate and adjust font size
+
+    # Set a maximum number of x-ticks to avoid overlap
+    plt.gca().xaxis.set_major_locator(MaxNLocator(integer = True, prune = "both"))  # Adjust tick placement
+
+    # Set title and labels
+    plt.title(f"Class Distribution in {split_name} Split")
+    plt.xlabel("Class")
+    plt.ylabel("Count")
+
+    # Display the plot
+    plt.show()
+
