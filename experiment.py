@@ -5,7 +5,8 @@ from tqdm.auto import tqdm
 
 class Experiment:
     def __init__(self, model, optimizer, loss_fn, train_loader, val_loader, device = "cuda",
-                 warmup_steps = 0, decay_scheduler = None, experiment_name = "experiment_1"):
+                 warmup_steps = 0, decay_scheduler = None, experiment_name = "experiment_1",
+                 experiment_note = None,compute_metrics = False):
         self.model = model
         self.optimizer = optimizer
         self.loss_fn = loss_fn
@@ -15,7 +16,10 @@ class Experiment:
         self.warmup_steps = warmup_steps
         self.decay_scheduler = decay_scheduler
         self.model.to(self.device)
+        self.experiment_name = experiment_name
+        self.experiment_note = experiment_note
         self.current_step = 0
+        self.compute_metrics = compute_metrics
 
         # TensorBoard setup
         logs_dir = os.path.join("runs", experiment_name)
@@ -50,20 +54,22 @@ class Experiment:
 
             # Average epoch loss
             epoch_loss = running_loss / len(self.train_loader)
-            print(f"Epoch [{epoch + 1}/{epochs}], Loss: {epoch_loss:.4f}")
 
             # Log epoch loss
             self.writer.add_scalar("Epoch Loss", epoch_loss, epoch + 1)
 
             # Evaluate after each epoch
-            self.evaluate()
+            val_loss = self.evaluate(epoch + 1)
 
             # Step the scheduler if provided
             if self.decay_scheduler:
                 self.decay_scheduler.step()
 
-    def evaluate(self):
+            print(f"Epoch [{epoch + 1}/{epochs}], Train Loss: {epoch_loss:.4f} | Validation Loss: {val_loss:4f}")
+
+    def evaluate(self, epoch):
         self.model.eval()
+        running_loss = 0.0
         all_preds = []
         all_targets = []
 
@@ -72,23 +78,36 @@ class Experiment:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
                 outputs = self.model(inputs)
 
-                _, preds = torch.max(outputs, 1)
-                all_preds.extend(preds.cpu().numpy())
-                all_targets.extend(targets.cpu().numpy())
+                # Compute loss
+                loss = self.loss_fn(outputs, targets)
+                running_loss += loss.item()
+
+                if self.compute_metrics:
+                    _, preds = torch.max(outputs, 1)
+                    all_preds.extend(preds.cpu().numpy())
+                    all_targets.extend(targets.cpu().numpy())
+
+        # Compute average evaluation loss
+        val_loss = running_loss / len(self.val_loader)
 
         # Compute metrics
-        accuracy = self.compute_accuracy(all_preds, all_targets)
-        precision = self.compute_precision(all_preds, all_targets)
-        recall = self.compute_recall(all_preds, all_targets)
-        f1 = self.compute_f1_score(all_preds, all_targets)
+        if self.compute_metrics:
+            accuracy = self.compute_accuracy(all_preds, all_targets)
+            precision = self.compute_precision(all_preds, all_targets)
+            recall = self.compute_recall(all_preds, all_targets)
+            f1 = self.compute_f1_score(all_preds, all_targets)
+            print(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+            
+            # Log metrics to TensorBoard
+            self.writer.add_scalar("Accuracy", accuracy, epoch)
+            self.writer.add_scalar("Precision", precision, epoch)
+            self.writer.add_scalar("Recall", recall, epoch)
+            self.writer.add_scalar("F1 Score", f1, epoch)
 
-        print(f"Accuracy: {accuracy:.4f}, Precision: {precision:.4f}, Recall: {recall:.4f}, F1 Score: {f1:.4f}")
+        # Log validation loss
+        self.writer.add_scalar("Validation Loss", val_loss, epoch)
 
-        # Log metrics to TensorBoard
-        self.writer.add_scalar("Accuracy", accuracy, self.current_step)
-        self.writer.add_scalar("Precision", precision, self.current_step)
-        self.writer.add_scalar("Recall", recall, self.current_step)
-        self.writer.add_scalar("F1 Score", f1, self.current_step)
+        return val_loss
 
     def warmup_lr(self):
         if self.current_step < self.warmup_steps:
