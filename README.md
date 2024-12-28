@@ -10,13 +10,13 @@ This project explores and reimplements the model architecture proposed in the se
     - **`model.py:`**: Only the code for the model developed in the main notebook.
     - **`experiment.py:`**: The experiment class implementing a basic training loop and tracking metrics
     - **`helper_functions.py:`**: Helper functions for the project
-    - **`attention.ipynb.py:`**: An implementation of single head attention in NumPy in the context ot ViT
+    - **`attention.ipynb:`**: An implementation of single head attention in NumPy in the context ot ViT
+    - **`layer_norm.ipynb:`**: Explore the layer norm layer in more detail with some examples
 
 
 <p align="center">
-<img src="data/cat_patchified.pngimage.png" width="570"/>
+  <img src="data/cat_patchified.png" width="570"/>
 </p>
-
 
 ### Paper and Repo References:
 
